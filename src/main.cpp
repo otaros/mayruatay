@@ -4,12 +4,10 @@
 #include <LowPower.h>
 #include <LiquidCrystal_I2C.h>
 
-#define work 2
-#define motor_pin 5
-#define en_pin  4
+#define detect 2
+#define pump_pin 5
 
-//volatile float temp;
-volatile int val = HIGH;
+volatile float temp;
 
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -17,39 +15,34 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 void detected();
 
 void setup() {
-  pinMode(work, INPUT);
-  pinMode(motor_pin,OUTPUT);
-  pinMode(en_pin,OUTPUT);
-  digitalWrite(en_pin,HIGH);
+  pinMode(detect, INPUT);
+  pinMode(pump_pin,OUTPUT);
   Serial.begin(9600);
   mlx.begin();
   lcd.init();
-  lcd.backlight();
+  lcd.noBacklight();
 }
 
 void loop() {
-  //lcd.clear();
-  digitalWrite(motor_pin,LOW);
-  delay(100);
-  val = digitalRead(work);
-  while(val == HIGH){
-    delay(100);
-    val = digitalRead(work);
-    if(val == LOW){
-      break;
+  while(digitalRead(detect) == HIGH){
+    delay(200);
+    digitalWrite(pump_pin, LOW);
+  }
+  
+  if(digitalRead(detect) == LOW){
+    temp = mlx.readObjectTempC();
+    lcd.backlight();
+    lcd.setCursor(6, 0);
+    lcd.print(temp);
+    digitalWrite(pump_pin,HIGH);
+    LowPower.idle(SLEEP_2S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF,SPI_OFF, USART0_OFF, TWI_OFF);
+    delay(1000);
+    digitalWrite(pump_pin, LOW);
+    lcd.init();
+    lcd.noBacklight();
+    while(digitalRead(detect) == LOW){
+      digitalWrite(pump_pin, LOW);
+      delay(200);
     }
   }
-    digitalWrite(motor_pin,HIGH);
-    float temp = mlx.readObjectTempC();
-    lcd.print(String(temp) + " C");
-    Serial.print(String(temp) + " C");
-    delay(1000);
-    digitalWrite(motor_pin,LOW);
-    while(val == LOW){
-      delay(100);
-      val = digitalRead(work);
-      if(val == HIGH){
-        break;
-      }
-    }
 }
